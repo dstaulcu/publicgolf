@@ -1,23 +1,26 @@
-$openssl_path = 'C:\Program Files\Git\usr\bin\openssl.exe'
+param(
+    $openssl_path='C:\Program Files\Git\usr\bin\openssl.exe',
+    $server="www.mit.edu:443")
+
 
 if (-not(Test-Path -Path $openssl_path)) {
     write-host "Resource file not found: $($openssl_path)"
     exit 1
 }
 
-$hostname = "www.mit.edu:443"
+write-host "Server: $($server)"
 
-$s_client = Write-Output "q`n" | & $openssl_path s_client -connect $hostname -status 2>$null
+$s_client = Write-Output "q`n" | & $openssl_path s_client -connect $server -status 2>$null
 
 $certificate = @()
 
 # capture elements of interest from stdout
 foreach ($line in $s_client) {
     # capture content of the subject
-    if ($line -match '^subject') {
+    if ($line -match '^subject=') {
         $subject = $line
         # clean captured content
-        $subject = $subject -replace '^subject=.*CN = ',''
+        $subject = $subject -replace '^subject=',''
     }
     
     # capture content of the server cert
@@ -35,7 +38,7 @@ foreach ($line in $s_client) {
     }        
 }
 
-write-host "Subject: $($subject)"
+write-host "-Server Certificate Subject: $($subject)"
 
 # write server certificate to tmp file
 $certfile_path = "$($env:temp)\tmp_cert_file.pem"
@@ -50,7 +53,7 @@ foreach ($line in $x509) {
         $entries = $entry -split ", "
         foreach ($entry in $entries) {
             $entry = $entry -replace '^DNS:',''
-            write-host "-DNS Entry: $($entry)"
+            write-host "-Server Certificate SAN DNS Entry: $($entry)"
         }
 
     }
