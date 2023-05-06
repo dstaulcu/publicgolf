@@ -4,6 +4,15 @@ from bs4 import BeautifulSoup
 import re
 import time
 
+"""
+todo:
+•	Accept command line parameters for products to download
+•	Accept command line parameters for folder to download pdf document to
+•	Identify name of file to download from server response
+•	Figure out why requests library takes so long to get pdf file compared to browser-based download of same target
+    (tried session, tried headers, trying sleep between tx)
+"""
+
 def get_splunkdoc_products():
 
     print('Getting list of splunk products.')
