@@ -91,11 +91,13 @@ http.client.HTTPConnection.debuglevel = 0
 for product in my_products:
 
     print('working on product: {}'.format(product))
-    
+
     versions = (get_splunkdoc_versions(product))
 
     for version in versions:
         if 'latest release' in versions[version]:
+
+            print('-found latest release version: {}'.format(version))
 
             # get page for specified product and version as soup
             url = 'https://docs.splunk.com/Documentation/' + product + '/' + version
@@ -126,10 +128,9 @@ for product in my_products:
 
                         # do the download!
                         file_fullname = download_path + '\\' + file_name
-                        print('-downloading document to {}'.format(file_fullname))
+                        print('-downloading {} document to {}'.format((href.split(":"))[2], file_fullname))
                         response = s.get(pdf_download_url, stream=True)
 
                         with open(file_fullname, "wb") as file:
                             for chunk in response.iter_content(chunk_size=16*1024):
                                 file.write(chunk)
-
