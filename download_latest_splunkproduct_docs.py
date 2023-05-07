@@ -2,7 +2,6 @@ import requests
 import http
 from bs4 import BeautifulSoup
 import re
-import time
 
 """
 todo:
@@ -13,12 +12,11 @@ todo:
     (tried session, tried headers, tried stream & chunked-writes, trying sleep between tx)
 """
 
-def get_splunkdoc_products():
 
+def get_splunkdoc_products():
     print('Getting list of splunk products.')
 
     url = "https://docs.splunk.com/Documentation/Splunk"
-    #page = requests.get(url)
     page = s.get(url)
     soup = BeautifulSoup(page.content, "html.parser")
 
@@ -31,7 +29,6 @@ def get_splunkdoc_products():
         element = str(element)
         match = re.match(pattern, element, re.IGNORECASE)
         if match := re.search(pattern, element, re.IGNORECASE):
-
             key = match.group(1)
 
             value = match.group(2)
@@ -42,17 +39,14 @@ def get_splunkdoc_products():
 
     return elements_dict
 
+    # list versions of documentation
+    # versions = soup.select('#version-select')
+    # for version in versions[0].contents:
+    # print(version)
 
-
-        # list versions of documentation
-        # versions = soup.select('#version-select')
-        # for version in versions[0].contents:
-        # print(version)
 
 def get_splunkdoc_versions(product):
-
     url = "https://docs.splunk.com/Documentation/" + product
-    #page = requests.get(url)
     page = s.get(url)
     soup = BeautifulSoup(page.content, "html.parser")
 
@@ -65,7 +59,6 @@ def get_splunkdoc_versions(product):
         element = str(element)
         match = re.match(pattern, element, re.IGNORECASE)
         if match := re.search(pattern, element, re.IGNORECASE):
-
             key = match.group(1)
 
             value = match.group(2)
@@ -80,13 +73,19 @@ def get_splunkdoc_versions(product):
 
     return elements_dict
 
+
 download_path = 'C:\Apps\splunkdocs'
 my_products = ['Splunk', 'Forwarder', 'ES', 'Phantom', 'DBX']
 
 # create session object for re-use
-sleep_seconds = 1
+user_agent = {'User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36 Edg/112.0.1722.68'}
+
 s = requests.Session()
+s.headers.update(user_agent)
+
+# toggle value from 0 to 1 to enable http request debugging
 http.client.HTTPConnection.debuglevel = 0
+
 
 for product in my_products:
 
@@ -102,7 +101,6 @@ for product in my_products:
             # get page for specified product and version as soup
             url = 'https://docs.splunk.com/Documentation/' + product + '/' + version
             page = s.get(url)
-            time.sleep(sleep_seconds)
             soup = BeautifulSoup(page.content, "html.parser")
 
             # process links listing documentation for product and version
@@ -110,27 +108,32 @@ for product in my_products:
 
                 # get page associated with the document
                 page = s.get('https://docs.splunk.com' + (i.attrs['href']))
-                time.sleep(sleep_seconds)
                 soup = BeautifulSoup(page.content, "html.parser")
 
-                # get the links on document page associated with product pdfbook action
-                for j in soup.find_all(href=re.compile('&action=pdfbook.*&product')):
+                # get the links on document page associated pdfbook (effectively excluding topic)
+                for j in soup.find_all(href=re.compile('title=Documentation:.*&action=pdfbook&[^\&]+&product=')):
+
+                    # construct the download url
                     href = j.attrs['href']
+                    pdf_download_url = 'https://docs.splunk.com' + href
 
-                    # process link instance for full manual (the one(s) that are not topic specific)
-                    if '&topic' not in href:
+                    # construct the download filename
+                    document = (href.split(":"))[2]
+                    file_name = product + '-' + version + '-' + document + '.pdf'
 
-                        # construct the download url
-                        pdf_download_url = 'https://docs.splunk.com' + href
+                    # do the download!
+                    response = s.get(pdf_download_url, stream=True)
 
-                        # construct the download filename
-                        file_name = product + '-' + version + '-' + (href.split(":"))[2] + '.pdf'
+                    # extract filename from server request headers
+                    file_name = response.headers.get("Content-Disposition").split("filename=")[1]
+                    file_name = file_name.replace('"', '')
 
-                        # do the download!
-                        file_fullname = download_path + '\\' + file_name
-                        print('-downloading {} document to {}'.format((href.split(":"))[2], file_fullname))
-                        response = s.get(pdf_download_url, stream=True)
+                    # construct the file_path
+                    file_path = download_path + '\\' + file_name
+                    print('-downloading {} document to {}'.format(document, file_path))
+                    print('-download url: {}'.format(pdf_download_url))
 
-                        with open(file_fullname, "wb") as file:
-                            for chunk in response.iter_content(chunk_size=16*1024):
-                                file.write(chunk)
+                    # download stremed results
+                    with open(file_path, "wb") as file:
+                        for chunk in response.iter_content(chunk_size=1024*8):
+                            file.write(chunk)
